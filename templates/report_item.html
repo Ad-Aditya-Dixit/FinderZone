@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>Report a Lost or Found Item</h2>
+  <form method="post" enctype="multipart/form-data">
+    {{ form.hidden_tag() }}
+    <div class="form-row">
+      {{ form.title.label }}<br>
+      {{ form.title(size=60) }}
+    </div>
+    <div class="form-row">
+      {{ form.description.label }}<br>
+      {{ form.description(rows=5, cols=60) }}
+    </div>
+    <div class="form-row">
+      {{ form.category.label }}<br>
+      {{ form.category() }}
+    </div>
+    <div class="form-row">
+      {{ form.status.label }}<br>
+      {{ form.status() }}
+    </div>
+    <div class="form-row">
+      <label for="image">Photo (optional)</label><br>
+      <input type="file" name="image" id="image" accept="image/*">
+    </div>
+    <div class="form-row">
+      {{ form.submit() }}
+    </div>
+  </form>
+{% endblock %}

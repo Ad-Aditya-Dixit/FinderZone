@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FinderZone - Lost & Found</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  </head>
+  <body>
+    <header class="topbar">
+  <div class="container" style="display: flex; align-items: center; justify-content: space-between; position: relative;">
+    
+    <!-- Left: Logo -->
+    <div style="display: flex; align-items: center; flex: 1;">
+      <img src="{{ url_for('static', filename='images/cu_logo.jpg') }}" alt="Chandigarh University Logo" style="height:80px; margin-right:12px;">
+    </div>
+    
+    <!-- Center: FinderZone Title -->
+    <h1 style="position: absolute; left: 50%; transform: translateX(-50%); margin: 0; flex: 1; text-align: center;">
+      <a href="{{ url_for('index') }}">FinderZone</a>
+    </h1>
+    
+    <!-- Right: Navigation -->
+    <nav style="flex: 1; text-align: right;">
+      <a href="{{ url_for('index') }}">Home</a>
+      <a href="{{ url_for('report') }}">Report Item</a>
+    </nav>
+  </div>
+</header>
+
+
+    <main class="container">
+      {% with messages = get_flashed_messages() %}
+        {% if messages %}
+          <ul class="flashes">
+            {% for m in messages %}
+              <li>{{ m }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      {% endwith %}
+      {% block content %}{% endblock %}
+    </main>
+    <footer class="container">
+      <p>Aditya's Lost & Found portal </p>
+    </footer>
+  </body>
+</html>
