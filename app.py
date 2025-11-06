@@ -1,5 +1,6 @@
 import os
 import sqlite3
+import time
 from flask import Flask, render_template, request, redirect, url_for, send_from_directory, flash
 from werkzeug.utils import secure_filename
 from forms import ReportForm
@@ -67,11 +68,13 @@ def report():
         if file and file.filename != '':
             if allowed_file(file.filename):
                 filename = secure_filename(file.filename)
-                # avoid name clash
+# avoid name clash using time.time()
                 base, ext = os.path.splitext(filename)
-                filename = f"{base}_{int(os.times()[4])}{ext}"
+                filename = f"{base}_{int(time.time())}{ext}"
                 file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
                 image_filename = filename
+                print("Saved file to:", os.path.join(app.config['UPLOAD_FOLDER'], filename))  # For debugging
+
             else:
                 flash('File type not allowed. Use png/jpg/jpeg/gif.')
                 return redirect(request.url)
