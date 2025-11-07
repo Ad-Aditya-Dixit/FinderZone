@@ -1,30 +1,97 @@
 {% extends "base.html" %}
 {% block content %}
   <h2>Report a Lost or Found Item</h2>
+
   <form method="post" enctype="multipart/form-data">
     {{ form.hidden_tag() }}
+
     <div class="form-row">
       {{ form.title.label }}<br>
       {{ form.title(size=60) }}
     </div>
+
     <div class="form-row">
       {{ form.description.label }}<br>
       {{ form.description(rows=5, cols=60) }}
     </div>
+
     <div class="form-row">
       {{ form.category.label }}<br>
       {{ form.category() }}
     </div>
+
     <div class="form-row">
       {{ form.status.label }}<br>
       {{ form.status() }}
     </div>
+
+    <!-- ===================== CAMERA SECTION ===================== -->
+    <hr>
+    <h3>Take Photo Using Camera</h3>
+    <video id="camera" autoplay playsinline width="300" height="220" style="border:1px solid #ccc;"></video><br>
+    <button type="button" id="captureBtn" style="margin-top:10px;">Capture Photo</button>
+    <canvas id="snapshot" width="300" height="220" style="display:none;"></canvas>
+    <input type="hidden" name="captured_image" id="captured_image">
+    <hr>
+
+    <!-- ===================== FILE UPLOAD (OPTIONAL) ===================== -->
     <div class="form-row">
-      <label for="image">Photo (optional)</label><br>
+      <label for="image">Or Upload Photo (optional)</label><br>
       <input type="file" name="image" id="image" accept="image/*">
     </div>
+
+    <!-- ===================== LOCATION ===================== -->
+    <div class="form-row">
+      <label>Detected Location:</label><br>
+      <input type="text" id="location" name="location" readonly style="width:300px;">
+      <input type="hidden" id="latitude" name="latitude">
+      <input type="hidden" id="longitude" name="longitude">
+    </div>
+
     <div class="form-row">
       {{ form.submit() }}
     </div>
   </form>
+
+  <!-- ===================== SCRIPTS ===================== -->
+  <script>
+    // --- Camera Access ---
+    const video = document.getElementById('camera');
+    const canvas = document.getElementById('snapshot');
+    const captureBtn = document.getElementById('captureBtn');
+    const capturedImage = document.getElementById('captured_image');
+
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => { video.srcObject = stream; })
+      .catch(err => console.error("Camera access denied:", err));
+
+    captureBtn.onclick = () => {
+      const context = canvas.getContext('2d');
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imageData = canvas.toDataURL('image/png');
+      capturedImage.value = imageData;
+      alert("Photo captured successfully!");
+    };
+
+    // --- Location Detection ---
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(async function(position) {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        document.getElementById("latitude").value = lat;
+        document.getElementById("longitude").value = lon;
+
+        // Optional: Get readable address using reverse geocoding API
+        try {
+          const response = await fetch(`https://geocode.maps.co/reverse?lat=${lat}&lon=${lon}`);
+          const data = await response.json();
+          document.getElementById("location").value = data.display_name || `${lat}, ${lon}`;
+        } catch (err) {
+          document.getElementById("location").value = `${lat}, ${lon}`;
+        }
+      });
+    } else {
+      document.getElementById("location").value = "Location not supported";
+    }
+  </script>
 {% endblock %}
