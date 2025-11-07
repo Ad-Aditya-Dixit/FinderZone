@@ -1,5 +1,10 @@
-Flask==3.0.3
-ultralytics==8.3.15
-Pillow
+Flask
+flask-wtf
+gunicorn
+ultralytics==8.1.14
 opencv-python
-Werkzeug
+pillow
+numpy
+pandas
+werkzeug
+jinja2
