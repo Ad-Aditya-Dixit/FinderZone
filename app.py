@@ -6,6 +6,8 @@ from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, send_from_directory, flash
 from werkzeug.utils import secure_filename
 from forms import ReportForm
+from ultralytics import YOLO
+from PIL import Image
 
 # ---------------- CONFIGURATION ----------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -14,9 +16,9 @@ DB_PATH = os.path.join(BASE_DIR, 'items.db')
 ALLOWED_EXT = {'png', 'jpg', 'jpeg', 'gif'}
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'dev-secret-key'  # change in production
+app.config['SECRET_KEY'] = 'dev-secret-key'  # change this in production
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5MB
+app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5 MB limit
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
@@ -52,7 +54,9 @@ def index():
     category = request.args.get('category', '').strip()
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    query = "SELECT id, title, description, category, status, image_filename, latitude, longitude, location_name, created_at FROM items WHERE 1=1"
+    query = """SELECT id, title, description, category, status, image_filename,
+                      latitude, longitude, location_name, created_at
+               FROM items WHERE 1=1"""
     params = []
     if q:
         query += " AND (title LIKE ? OR description LIKE ?)"
@@ -77,18 +81,34 @@ def report():
         status = form.status.data
         image_filename = None
 
-        # --- CAMERA IMAGE HANDLING ---
-        camera_image_data = request.form.get('camera_image')
+        # --- CAMERA IMAGE HANDLING + OBJECT DETECTION ---
+        camera_image_data = request.form.get('captured_image')
         if camera_image_data:
             try:
                 image_data = base64.b64decode(camera_image_data.split(',')[1])
                 filename = f"camera_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
                 file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+
                 with open(file_path, 'wb') as f:
                     f.write(image_data)
                 image_filename = filename
+
+                # Run YOLO object detection
+                model = YOLO("yolov8n.pt")  # lightweight model
+                results = model(file_path)
+                detected_objects = set()
+
+                for r in results:
+                    boxes = r.boxes
+                    for cls_id in boxes.cls:
+                        detected_objects.add(model.names[int(cls_id)])
+
+                if detected_objects:
+                    flash(f"Detected objects: {', '.join(detected_objects)}")
+                else:
+                    flash("No recognizable objects detected.")
             except Exception as e:
-                flash(f"Error saving camera image: {e}")
+                flash(f"Error processing camera image: {e}")
                 return redirect(request.url)
 
         # --- FILE UPLOAD HANDLING ---
@@ -102,23 +122,25 @@ def report():
                     file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
                     image_filename = filename
                 else:
-                    flash('File type not allowed. Use png/jpg/jpeg/gif.')
+                    flash('File type not allowed. Please upload png/jpg/jpeg/gif.')
                     return redirect(request.url)
 
         # --- LOCATION DATA ---
         latitude = request.form.get('latitude')
         longitude = request.form.get('longitude')
-        location_name = request.form.get('location_name')
+        location_name = request.form.get('location')
 
         # --- SAVE TO DATABASE ---
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
-        c.execute('INSERT INTO items (title, description, category, status, image_filename, latitude, longitude, location_name) VALUES (?,?,?,?,?,?,?,?)',
+        c.execute('''INSERT INTO items 
+                    (title, description, category, status, image_filename, latitude, longitude, location_name)
+                     VALUES (?,?,?,?,?,?,?,?)''',
                   (title, description, category, status, image_filename, latitude, longitude, location_name))
         conn.commit()
         conn.close()
 
-        flash('Item reported successfully with location!')
+        flash('Item reported successfully with detected location!')
         return redirect(url_for('index'))
 
     return render_template('report_item.html', form=form)
