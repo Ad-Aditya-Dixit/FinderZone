@@ -1,97 +1,265 @@
 {% extends "base.html" %}
 {% block content %}
-  <h2>Report a Lost or Found Item</h2>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Report Lost or Found Item</title>
 
-  <form method="post" enctype="multipart/form-data">
-    {{ form.hidden_tag() }}
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0.55)),
+                  url("{{ url_for('static', filename='images/cu_background.jpg') }}") no-repeat center center fixed;
+      background-size: cover;
+    }
 
-    <div class="form-row">
-      {{ form.title.label }}<br>
+    .report-container {
+      max-width: 800px;
+      margin: 90px auto;
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 16px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+      padding: 40px;
+      animation: fadeIn 0.8s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    h2 {
+      text-align: center;
+      color: #b91c1c;
+      font-weight: 700;
+      margin-bottom: 25px;
+      letter-spacing: 1px;
+    }
+
+    label {
+      font-weight: 500;
+      color: #222;
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    input[type="text"], textarea, select, input[type="file"] {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      margin-bottom: 16px;
+      font-size: 15px;
+      transition: 0.3s;
+    }
+
+    input:focus, textarea:focus, select:focus {
+      border-color: #b91c1c;
+      box-shadow: 0 0 8px rgba(185, 28, 28, 0.4);
+      outline: none;
+    }
+
+    button, input[type="submit"] {
+      background: #b91c1c;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 25px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: 0.3s;
+    }
+
+    button:hover, input[type="submit"]:hover {
+      background: #dc2626;
+      transform: scale(1.05);
+      box-shadow: 0 0 15px rgba(220, 38, 38, 0.6);
+    }
+
+    .media-section {
+      text-align: center;
+      margin-bottom: 25px;
+    }
+
+    video, canvas, #uploaded-preview, #captured-preview {
+      width: 100%;
+      max-width: 420px;
+      height: auto;
+      border-radius: 12px;
+      border: 2px solid #ccc;
+      margin-top: 8px;
+      object-fit: cover;
+    }
+
+    #uploaded-preview, #captured-preview {
+      display: none;
+    }
+
+    hr {
+      border: none;
+      border-top: 2px dashed #ccc;
+      margin: 25px 0;
+    }
+
+    .location-card {
+      background: #fef2f2;
+      border-left: 5px solid #b91c1c;
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 15px;
+      color: #333;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .footer-watermark {
+      text-align: right;
+      color: white;
+      font-size: 14px;
+      position: fixed;
+      bottom: 10px;
+      right: 20px;
+      opacity: 0.8;
+    }
+
+    .footer-watermark img {
+      width: 50px;
+      vertical-align: middle;
+      margin-left: 8px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="report-container">
+    <h2>📋 Report a Lost or Found Item</h2>
+
+    <form method="post" enctype="multipart/form-data">
+      {{ form.hidden_tag() }}
+
+      <label>{{ form.title.label }}</label>
       {{ form.title(size=60) }}
-    </div>
 
-    <div class="form-row">
-      {{ form.description.label }}<br>
-      {{ form.description(rows=5, cols=60) }}
-    </div>
+      <label>{{ form.description.label }}</label>
+      {{ form.description(rows=4, cols=60) }}
 
-    <div class="form-row">
-      {{ form.category.label }}<br>
+      <label>{{ form.category.label }}</label>
       {{ form.category() }}
-    </div>
 
-    <div class="form-row">
-      {{ form.status.label }}<br>
+      <label>{{ form.status.label }}</label>
       {{ form.status() }}
-    </div>
 
-    <!-- ===================== CAMERA SECTION ===================== -->
-    <hr>
-    <h3>Take Photo Using Camera</h3>
-    <video id="camera" autoplay playsinline width="300" height="220" style="border:1px solid #ccc;"></video><br>
-    <button type="button" id="captureBtn" style="margin-top:10px;">Capture Photo</button>
-    <canvas id="snapshot" width="300" height="220" style="display:none;"></canvas>
-    <input type="hidden" name="captured_image" id="captured_image">
-    <hr>
+      <hr>
 
-    <!-- ===================== FILE UPLOAD (OPTIONAL) ===================== -->
-    <div class="form-row">
-      <label for="image">Or Upload Photo (optional)</label><br>
-      <input type="file" name="image" id="image" accept="image/*">
-    </div>
+      <div class="media-section">
+        <h3>📸 Capture Using Camera</h3>
+        <video id="camera" autoplay playsinline></video><br>
+        <button type="button" id="captureBtn">Capture</button>
+        <canvas id="snapshot" style="display:none;"></canvas>
+        <img id="captured-preview" alt="Captured Image Preview">
+        <input type="hidden" name="captured_image" id="captured_image">
+      </div>
 
-    <!-- ===================== LOCATION ===================== -->
-    <div class="form-row">
-      <label>Detected Location:</label><br>
-      <input type="text" id="location" name="location" readonly style="width:300px;">
+      <hr>
+
+      <div class="media-section">
+        <h3>📂 Or Upload an Image</h3>
+        <input type="file" name="image" id="image" accept="image/*">
+        <img id="uploaded-preview" alt="Uploaded Image Preview">
+      </div>
+
+      <hr>
+
+      <label>📍 Detected Location:</label>
+      <div class="location-card" id="location-card">
+        Detecting your location...
+      </div>
+      <input type="hidden" id="location" name="location">
       <input type="hidden" id="latitude" name="latitude">
       <input type="hidden" id="longitude" name="longitude">
-    </div>
 
-    <div class="form-row">
-      {{ form.submit() }}
-    </div>
-  </form>
+      <div style="text-align:center; margin-top:25px;">
+        {{ form.submit() }}
+      </div>
+    </form>
+  </div>
 
-  <!-- ===================== SCRIPTS ===================== -->
+  <div class="footer-watermark">
+    Aditya's Lost & Found Portal
+    <img src="{{ url_for('static', filename='images/cu_logo.png') }}" alt="CU Logo">
+  </div>
+
   <script>
-    // --- Camera Access ---
+    // ---------- CAMERA ----------
     const video = document.getElementById('camera');
     const canvas = document.getElementById('snapshot');
     const captureBtn = document.getElementById('captureBtn');
     const capturedImage = document.getElementById('captured_image');
+    const capturedPreview = document.getElementById('captured-preview');
 
-    navigator.mediaDevices.getUserMedia({ video: true })
-      .then(stream => { video.srcObject = stream; })
-      .catch(err => console.error("Camera access denied:", err));
+    async function initCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        video.srcObject = stream;
+      } catch (err) {
+        console.error("Camera not accessible:", err);
+        alert("⚠️ Please allow camera permission to capture an image.");
+      }
+    }
+    initCamera();
 
     captureBtn.onclick = () => {
-      const context = canvas.getContext('2d');
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const ctx = canvas.getContext('2d');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0);
       const imageData = canvas.toDataURL('image/png');
       capturedImage.value = imageData;
-      alert("Photo captured successfully!");
+      capturedPreview.src = imageData;
+      capturedPreview.style.display = 'block';
+      alert("✅ Photo captured successfully!");
     };
 
-    // --- Location Detection ---
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(async function(position) {
-        const lat = position.coords.latitude;
-        const lon = position.coords.longitude;
-        document.getElementById("latitude").value = lat;
-        document.getElementById("longitude").value = lon;
+    // ---------- UPLOADED IMAGE PREVIEW ----------
+    const uploadInput = document.getElementById('image');
+    const uploadPreview = document.getElementById('uploaded-preview');
+    uploadInput.addEventListener('change', () => {
+      const file = uploadInput.files[0];
+      if (file) {
+        uploadPreview.src = URL.createObjectURL(file);
+        uploadPreview.style.display = 'block';
+      }
+    });
 
-        // Optional: Get readable address using reverse geocoding API
+    // ---------- LOCATION ----------
+    const locationCard = document.getElementById('location-card');
+    const locField = document.getElementById('location');
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(async (pos) => {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        document.getElementById('latitude').value = lat;
+        document.getElementById('longitude').value = lon;
+
         try {
           const response = await fetch(`https://geocode.maps.co/reverse?lat=${lat}&lon=${lon}`);
           const data = await response.json();
-          document.getElementById("location").value = data.display_name || `${lat}, ${lon}`;
+          const locationName = data.display_name || `${lat}, ${lon}`;
+          locationCard.textContent = locationName;
+          locField.value = locationName;
         } catch (err) {
-          document.getElementById("location").value = `${lat}, ${lon}`;
+          locationCard.textContent = `${lat}, ${lon}`;
+          locField.value = `${lat}, ${lon}`;
         }
+      }, () => {
+        locationCard.textContent = "Location permission denied.";
       });
     } else {
-      document.getElementById("location").value = "Location not supported";
+      locationCard.textContent = "Geolocation not supported.";
     }
   </script>
+</body>
+</html>
 {% endblock %}

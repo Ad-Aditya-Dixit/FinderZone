@@ -8,6 +8,9 @@ from werkzeug.utils import secure_filename
 from forms import ReportForm
 from ultralytics import YOLO
 from PIL import Image
+import torch
+import ultralytics
+from torch.serialization import add_safe_globals
 
 # ---------------- CONFIGURATION ----------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -16,12 +19,11 @@ DB_PATH = os.path.join(BASE_DIR, 'items.db')
 ALLOWED_EXT = {'png', 'jpg', 'jpeg', 'gif'}
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'dev-secret-key'  # change this in production
+app.config['SECRET_KEY'] = 'dev-secret-key'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5 MB limit
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB limit
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
 
 # ---------------- HELPER FUNCTIONS ----------------
 def allowed_file(filename):
@@ -52,6 +54,7 @@ def init_db():
 def index():
     q = request.args.get('q', '').strip()
     category = request.args.get('category', '').strip()
+
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     query = """SELECT id, title, description, category, status, image_filename,
@@ -68,7 +71,23 @@ def index():
     c.execute(query, params)
     items = c.fetchall()
     conn.close()
-    return render_template('index.html', items=items, q=q, category=category)
+
+    # convert into a list of dicts for easier template handling
+    formatted_items = []
+    for item in items:
+        formatted_items.append({
+            'id': item[0],
+            'title': item[1],
+            'description': item[2],
+            'category': item[3],
+            'status': item[4],
+            'image_filename': item[5],
+            'latitude': item[6],
+            'longitude': item[7],
+            'location_name': item[8],
+            'created_at': item[9]
+        })
+    return render_template('index.html', items=formatted_items, q=q, category=category)
 
 
 @app.route('/report', methods=['GET', 'POST'])
@@ -93,8 +112,9 @@ def report():
                     f.write(image_data)
                 image_filename = filename
 
-                # Run YOLO object detection
-                model = YOLO("yolov8n.pt")  # lightweight model
+                # Safe YOLO model loading for PyTorch 2.6+
+                add_safe_globals([ultralytics.nn.tasks.DetectionModel])
+                model = YOLO("yolov8n.pt")
                 results = model(file_path)
                 detected_objects = set()
 
@@ -104,11 +124,12 @@ def report():
                         detected_objects.add(model.names[int(cls_id)])
 
                 if detected_objects:
-                    flash(f"Detected objects: {', '.join(detected_objects)}")
+                    flash(f"Detected objects: {', '.join(detected_objects)}", "success")
                 else:
-                    flash("No recognizable objects detected.")
+                    flash("No recognizable objects detected.", "warning")
+
             except Exception as e:
-                flash(f"Error processing camera image: {e}")
+                flash(f"Error processing camera image: {e}", "danger")
                 return redirect(request.url)
 
         # --- FILE UPLOAD HANDLING ---
@@ -122,7 +143,7 @@ def report():
                     file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
                     image_filename = filename
                 else:
-                    flash('File type not allowed. Please upload png/jpg/jpeg/gif.')
+                    flash('File type not allowed. Please upload png/jpg/jpeg/gif.', 'danger')
                     return redirect(request.url)
 
         # --- LOCATION DATA ---
@@ -140,15 +161,10 @@ def report():
         conn.commit()
         conn.close()
 
-        flash('Item reported successfully with detected location!')
+        flash('Item reported successfully with location and image!', 'success')
         return redirect(url_for('index'))
 
     return render_template('report_item.html', form=form)
-
-
-@app.route('/items')
-def items():
-    return redirect(url_for('index'))
 
 
 @app.route('/uploads/<filename>')
@@ -159,6 +175,4 @@ def uploaded_file(filename):
 # ---------------- MAIN APP ENTRY ----------------
 if __name__ == '__main__':
     init_db()
-    port = int(os.environ.get('PORT', 10000))  # default fallback
-    app.run(host='0.0.0.0', port=port)
-
+    app.run(host='0.0.0.0', port=5000, debug=True)
