@@ -1,19 +1,12 @@
 {% extends "base.html" %}
 {% block content %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Report Lost or Found Item</title>
-
   <style>
     body {
-      margin: 0;
       font-family: 'Poppins', sans-serif;
       background: linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0.55)),
                   url("{{ url_for('static', filename='images/cu_background.jpg') }}") no-repeat center center fixed;
       background-size: cover;
+      margin: 0;
     }
 
     .report-container {
@@ -130,9 +123,7 @@
       margin-left: 8px;
     }
   </style>
-</head>
 
-<body>
   <div class="report-container">
     <h2>📋 Report a Lost or Found Item</h2>
 
@@ -260,6 +251,4 @@
       locationCard.textContent = "Geolocation not supported.";
     }
   </script>
-</body>
-</html>
 {% endblock %}

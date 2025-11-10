@@ -15,20 +15,21 @@
     <div class="grid">
       {% for item in items %}
         <div class="card">
-  <div class="card-inner">
-    <div class="card-front">
-      {% if item[4] %}
-        <img src="{{ url_for('uploaded_file', filename=item[4]) }}" alt="photo" class="thumb">
-      {% endif %}
-      <h3>{{ item[1] }}</h3>
-      <p class="meta">{{ item[3] | capitalize }} • {{ item[5] }}</p>
-    </div>
-    <div class="card-back">
-      <p>{{ item[2] }}</p>
-    </div>
-  </div>
-</div>
-
+          <div class="card-inner">
+            <div class="card-front">
+              {% if item.image_filename %}
+                <img src="{{ url_for('static', filename='uploads/' + item.image_filename) }}" alt="photo" class="thumb">
+              {% else %}
+                <p>No image available</p>
+              {% endif %}
+              <h3>{{ item.title }}</h3>
+              <p class="meta">{{ item.category | capitalize }} • {{ item.status }}</p>
+            </div>
+            <div class="card-back">
+              <p>{{ item.description }}</p>
+            </div>
+          </div>
+        </div>
       {% endfor %}
     </div>
   {% else %}

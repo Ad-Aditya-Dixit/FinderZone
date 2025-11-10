@@ -3,14 +3,12 @@ import sqlite3
 import time
 import base64
 from datetime import datetime
-from flask import Flask, render_template, request, redirect, url_for, send_from_directory, flash
+from flask import Flask, render_template, request, redirect, url_for, flash
 from werkzeug.utils import secure_filename
 from forms import ReportForm
 from ultralytics import YOLO
-from PIL import Image
-import torch
-import ultralytics
 from torch.serialization import add_safe_globals
+import ultralytics
 
 # ---------------- CONFIGURATION ----------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -29,25 +27,22 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXT
 
-
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS items (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT NOT NULL,
-        description TEXT,
-        category TEXT,
-        status TEXT,
-        image_filename TEXT,
-        latitude TEXT,
-        longitude TEXT,
-        location_name TEXT,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP
-    )''')
-    conn.commit()
-    conn.close()
-
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+        c.execute('''CREATE TABLE IF NOT EXISTS items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            description TEXT,
+            category TEXT,
+            status TEXT,
+            image_filename TEXT,
+            latitude TEXT,
+            longitude TEXT,
+            location_name TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )''')
+        conn.commit()
 
 # ---------------- ROUTES ----------------
 @app.route('/')
@@ -55,24 +50,22 @@ def index():
     q = request.args.get('q', '').strip()
     category = request.args.get('category', '').strip()
 
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    query = """SELECT id, title, description, category, status, image_filename,
-                      latitude, longitude, location_name, created_at
-               FROM items WHERE 1=1"""
-    params = []
-    if q:
-        query += " AND (title LIKE ? OR description LIKE ?)"
-        params += [f'%{q}%', f'%{q}%']
-    if category:
-        query += " AND category = ?"
-        params.append(category)
-    query += " ORDER BY created_at DESC"
-    c.execute(query, params)
-    items = c.fetchall()
-    conn.close()
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+        query = """SELECT id, title, description, category, status, image_filename,
+                          latitude, longitude, location_name, created_at
+                   FROM items WHERE 1=1"""
+        params = []
+        if q:
+            query += " AND (title LIKE ? OR description LIKE ?)"
+            params += [f'%{q}%', f'%{q}%']
+        if category:
+            query += " AND category = ?"
+            params.append(category)
+        query += " ORDER BY created_at DESC"
+        c.execute(query, params)
+        items = c.fetchall()
 
-    # convert into a list of dicts for easier template handling
     formatted_items = []
     for item in items:
         formatted_items.append({
@@ -100,9 +93,8 @@ def report():
         status = form.status.data
         image_filename = None
 
-        # --- CAMERA IMAGE HANDLING + OBJECT DETECTION ---
         camera_image_data = request.form.get('captured_image')
-        if camera_image_data:
+        if camera_image_data and camera_image_data.strip() != '':
             try:
                 image_data = base64.b64decode(camera_image_data.split(',')[1])
                 filename = f"camera_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
@@ -112,7 +104,6 @@ def report():
                     f.write(image_data)
                 image_filename = filename
 
-                # Safe YOLO model loading for PyTorch 2.6+
                 add_safe_globals([ultralytics.nn.tasks.DetectionModel])
                 model = YOLO("yolov8n.pt")
                 results = model(file_path)
@@ -131,8 +122,6 @@ def report():
             except Exception as e:
                 flash(f"Error processing camera image: {e}", "danger")
                 return redirect(request.url)
-
-        # --- FILE UPLOAD HANDLING ---
         else:
             file = request.files.get('image')
             if file and file.filename != '':
@@ -146,20 +135,17 @@ def report():
                     flash('File type not allowed. Please upload png/jpg/jpeg/gif.', 'danger')
                     return redirect(request.url)
 
-        # --- LOCATION DATA ---
         latitude = request.form.get('latitude')
         longitude = request.form.get('longitude')
         location_name = request.form.get('location')
 
-        # --- SAVE TO DATABASE ---
-        conn = sqlite3.connect(DB_PATH)
-        c = conn.cursor()
-        c.execute('''INSERT INTO items 
-                    (title, description, category, status, image_filename, latitude, longitude, location_name)
-                     VALUES (?,?,?,?,?,?,?,?)''',
-                  (title, description, category, status, image_filename, latitude, longitude, location_name))
-        conn.commit()
-        conn.close()
+        with sqlite3.connect(DB_PATH) as conn:
+            c = conn.cursor()
+            c.execute('''INSERT INTO items 
+                        (title, description, category, status, image_filename, latitude, longitude, location_name)
+                         VALUES (?,?,?,?,?,?,?,?)''',
+                      (title, description, category, status, image_filename, latitude, longitude, location_name))
+            conn.commit()
 
         flash('Item reported successfully with location and image!', 'success')
         return redirect(url_for('index'))
@@ -167,9 +153,7 @@ def report():
     return render_template('report_item.html', form=form)
 
 
-@app.route('/uploads/<filename>')
-def uploaded_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+# Optional: Removed /uploads route as not needed with static folder serving
 
 
 # ---------------- MAIN APP ENTRY ----------------
